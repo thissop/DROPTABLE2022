@@ -1,6 +1,8 @@
-package examplefuncsplayer;
+package soldier0;
 
 import battlecode.common.*;
+
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -45,6 +47,8 @@ public strictfp class RobotPlayer {
      *            information on its current status. Essentially your portal to interacting with the world.
      **/
     @SuppressWarnings("unused")
+
+
     public static void run(RobotController rc) throws GameActionException {
 
         // Hello world! Standard output is very useful for debugging.
@@ -105,10 +109,15 @@ public strictfp class RobotPlayer {
      * Run a single turn for an Archon.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
+
     static void runArchon(RobotController rc) throws GameActionException {
+        int miner_count = 0;
+        int soldier_count = 0;
+
+
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
-        if (rng.nextBoolean()) {
+        if (miner_count<15) {
             // Let's try to build a miner.
             rc.setIndicatorString("Trying to build a miner");
             if (rc.canBuildRobot(RobotType.MINER, dir)) {
@@ -127,7 +136,10 @@ public strictfp class RobotPlayer {
      * Run a single turn for a Miner.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
+
     static void runMiner(RobotController rc) throws GameActionException {
+
+
         // Try to mine on squares around us.
         MapLocation me = rc.getLocation();
         for (int dx = -1; dx <= 1; dx++) {
@@ -156,23 +168,51 @@ public strictfp class RobotPlayer {
      * Run a single turn for a Soldier.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
+
     static void runSoldier(RobotController rc) throws GameActionException {
-        // Try to attack someone
-        int radius = rc.getType().actionRadiusSquared;
-        Team opponent = rc.getTeam().opponent();
-        RobotInfo[] enemies = rc.senseNearbyRobots(radius, opponent);
-        if (enemies.length > 0) {
-            MapLocation toAttack = enemies[0].location;
-            if (rc.canAttack(toAttack)) {
-                rc.attack(toAttack);
+        Team friendly_team = rc.getTeam();
+        RobotInfo [] nearby_robots = rc.senseNearbyRobots();
+        boolean archon_found = false;
+        for (int i=0; i< nearby_robots.length; i++) {
+            RobotType nearby_type = nearby_robots[i].getType();
+            Team nearby_team = nearby_robots[i].getTeam();
+            if (nearby_type.equals(RobotType.ARCHON)&&(!nearby_team.equals(friendly_team))) {
+
+                MapLocation archon_loc = nearby_robots[i].location;
+
+                if (rc.canAttack(archon_loc)) {
+                    rc.attack(archon_loc);
+                    System.out.println("ATTACED ENEMY ARCON!");
+                }
+
+                else {
+                    Direction toAttack = rc.getLocation().directionTo(archon_loc);
+                    if (rc.canMove(toAttack)) {
+                        rc.move(toAttack);
+                    }
+
+                    else {
+                        Direction dir = directions[rng.nextInt(directions.length)];
+                        if (rc.canMove(dir)) {
+                            rc.move(dir);
+                            System.out.println("I moved!");
+                        }
+                    }
+                }
+
+                archon_found = true;
+                break;
             }
         }
 
-        // Also try to move randomly.
-        Direction dir = directions[rng.nextInt(directions.length)];
-        if (rc.canMove(dir)) {
-            rc.move(dir);
-            System.out.println("I moved!");
+        // if archon hasn't been found
+        if (!archon_found) {
+            Direction dir = directions[rng.nextInt(directions.length)];
+            if (rc.canMove(dir)) {
+                rc.move(dir);
+                System.out.println("I moved!");
+            }
         }
     }
+
 }
