@@ -14,10 +14,26 @@ lowest health archon nearby loc
 lowest health nearby enemy loc
 maplocation nearest friendly
 
-read from shared array to check if archon loc is known. 
-
-initial loop through nearby robots: 
-    i
+check archon section of shared array. 
+if an archon location is known: 
+    if multiple archon locations are known: 
+        if multiple archons are within attack distance: 
+            try to attack the one with lowest health. 
+        else: 
+            if any enemy soldiers // fix prioritization 
+            try to move toward closest 
+    else: 
+        if can attack known archon location: 
+            attack known archon location
+        else: 
+            if any nearby enemy soldiers are within range: 
+                try to attack soldier with lowest health 
+            else: 
+                try to move within strike distance of nearest archon
+else: 
+    
+            
+          
 
 
 // fix this below 
