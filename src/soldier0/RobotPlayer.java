@@ -425,6 +425,9 @@ public strictfp class RobotPlayer {
     }
 
     static void scoutArchon(RobotController rc)  throws  GameActionException{
+        if (((rc.getRoundNum() ^ rc.getID()) & 0b11) != 0) {
+            return;
+        }
         int arc4 = rc.readSharedArray(63);
         if (0 < arc4) {
             return;
@@ -449,7 +452,7 @@ public strictfp class RobotPlayer {
                         rc.writeSharedArray(60, robotInfo.getID() + 0b1000000000000000);
                     } else if (arc2 == 0b1111111111111) {
                         uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
-                        rc.writeSharedArray(610, robotInfo.getID() + 0b1000000000000000);
+                        rc.writeSharedArray(61, robotInfo.getID() + 0b1000000000000000);
                     } else if (arc3 == 0b1111111111111) {
                         uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
                         rc.writeSharedArray(62, robotInfo.getID() + 0b1000000000000000);
