@@ -1,7 +1,9 @@
 package soldier0;
 
 import battlecode.common.*;
+import com.sun.glass.ui.Robot;
 
+import java.awt.*;
 import java.util.Map;
 import java.util.Random;
 
@@ -27,24 +29,43 @@ public strictfp class RobotPlayer {
      */
     static final Random rng = new Random(6147);
 
-    /** Array containing all the possible movement directions. */
+    /**
+     * Array containing all the possible movement directions.
+     */
     static final Direction[] directions = {
-        Direction.NORTH,
-        Direction.NORTHEAST,
-        Direction.EAST,
-        Direction.SOUTHEAST,
-        Direction.SOUTH,
-        Direction.SOUTHWEST,
-        Direction.WEST,
-        Direction.NORTHWEST,
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
+
+    static final Direction[] cardinalDirections = {
+            Direction.NORTH,
+            Direction.EAST,
+            Direction.SOUTH,
+            Direction.WEST,
+    };
+
+    static final Direction[] cross_map_x = {
+            Direction.SOUTHWEST,
+            Direction.NORTH,
+            Direction.SOUTHEAST,
+            Direction.WEST,
+            Direction.NORTH,
+            Direction.EAST,
+            Direction.SOUTH
     };
 
     /**
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * It is like the main function for your robot. If this method returns, the robot dies!
      *
-     * @param rc  The RobotController object. You use it to perform actions from this robot, and to get
-     *            information on its current status. Essentially your portal to interacting with the world.
+     * @param rc The RobotController object. You use it to perform actions from this robot, and to get
+     *           information on its current status. Essentially your portal to interacting with the world.
      **/
     @SuppressWarnings("unused")
 
@@ -73,13 +94,20 @@ public strictfp class RobotPlayer {
                 // use different strategies on different robots. If you wish, you are free to rewrite
                 // this into a different control structure!
                 switch (rc.getType()) {
-                    case ARCHON:     runArchon(rc);  break;
-                    case MINER:      runMiner(rc);   break;
-                    case SOLDIER:    runSoldier(rc); break;
+                    case ARCHON:
+                        runArchon(rc);
+                        break;
+                    case MINER:
+                        runMiner(rc);
+                        break;
+                    case SOLDIER:
+                        runSoldier(rc);
+                        break;
                     case LABORATORY: // Examplefuncsplayer doesn't use any of these robot types below.
                     case WATCHTOWER: // You might want to give them a try!
                     case BUILDER:
-                    case SAGE:       break;
+                    case SAGE:
+                        break;
                 }
             } catch (GameActionException e) {
                 // Oh no! It looks like we did something illegal in the Battlecode world. You should
@@ -93,6 +121,7 @@ public strictfp class RobotPlayer {
                 // GameActionException, so it's more likely to be a bug in our code.
                 System.out.println(rc.getType() + " Exception");
                 e.printStackTrace();
+                rc.resign();
 
             } finally {
                 // Signify we've done everything we want to do, thereby ending our turn.
@@ -111,13 +140,9 @@ public strictfp class RobotPlayer {
      */
 
     static void runArchon(RobotController rc) throws GameActionException {
-        int miner_count = 0;
-        int soldier_count = 0;
-
-
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
-        if (miner_count<15) {
+        if (rng.nextBoolean()) {
             // Let's try to build a miner.
             rc.setIndicatorString("Trying to build a miner");
             if (rc.canBuildRobot(RobotType.MINER, dir)) {
@@ -165,54 +190,302 @@ public strictfp class RobotPlayer {
     }
 
     /**
-     * Run a single turn for a Soldier.
-     * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
+     FIX SOLDIER ROUTINE!!! ONLY CHECKS FIRST ARCHON LOCATION!!!!!
+     Attack buildings before droids while on offense??
      */
-
     static void runSoldier(RobotController rc) throws GameActionException {
-        Team friendly_team = rc.getTeam();
-        RobotInfo [] nearby_robots = rc.senseNearbyRobots();
-        boolean archon_found = false;
-        for (int i=0; i< nearby_robots.length; i++) {
-            RobotType nearby_type = nearby_robots[i].getType();
-            Team nearby_team = nearby_robots[i].getTeam();
-            if (nearby_type.equals(RobotType.ARCHON)&&(!nearby_team.equals(friendly_team))) {
-
-                MapLocation archon_loc = nearby_robots[i].location;
-
+        MapLocation start_loc = rc.getLocation();
+        // downloadWID: {actual x, actual y, actual time, mode, arcID}
+        if (rc.readSharedArray(60) != 0) { // if there's info about archon in shared array
+            System.out.println("FOUND ARCHON. DOWNLOADING INFO.");
+            int [] archon_info = downloadWID(rc, 0);
+            int archon_id = archon_info[4];
+            MapLocation read_archon_loc = new MapLocation(archon_info[0], archon_info[1]);
+            System.out.println("IT'S LOCATED AT " +read_archon_loc+"!");
+            if (rc.canSenseRobot(archon_id)) {
+                RobotInfo local_archon_info = rc.senseRobot(archon_id);
+                MapLocation archon_loc = local_archon_info.getLocation();
                 if (rc.canAttack(archon_loc)) {
                     rc.attack(archon_loc);
-                    System.out.println("ATTACED ENEMY ARCON!");
+                    System.out.println("Attacked an ARCHON!");
+                }
+            }
+            else {
+                Direction dir_to_archon = start_loc.directionTo(read_archon_loc);
+                if (fuzzyGoTo(rc, dir_to_archon)) {
+                    System.out.println("MOVED TOWARDS ARCHON!");
+                }
+            }
+        }
+
+        else { // couldn't find archon so other things will happen
+
+            int attack_id = -1;
+            int lowest_health = 2000;
+            int out_of_range_id = -1;
+            int out_of_range_dist = 25;
+
+            for (RobotInfo robot_test : rc.senseNearbyRobots(20, rc.getTeam().opponent())) {
+                int dist_to_test = start_loc.distanceSquaredTo(robot_test.getLocation());
+                if (dist_to_test<=13) {
+                    if (robot_test.getHealth()<lowest_health) {
+                        attack_id = robot_test.getID();
+                        lowest_health = robot_test.getHealth();
+                    }
                 }
 
                 else {
-                    Direction toAttack = rc.getLocation().directionTo(archon_loc);
-                    if (rc.canMove(toAttack)) {
-                        rc.move(toAttack);
-                    }
-
-                    else {
-                        Direction dir = directions[rng.nextInt(directions.length)];
-                        if (rc.canMove(dir)) {
-                            rc.move(dir);
-                            System.out.println("I moved!");
-                        }
+                    if (dist_to_test<out_of_range_dist) {
+                        out_of_range_id = robot_test.getID();
+                        out_of_range_dist = dist_to_test;
                     }
                 }
+            }
 
-                archon_found = true;
+            // maybe loop thru full vision radius, and if it couldn't attack the closest enemy move towards it if archon loc is unknown
+            if (attack_id!=-1) {
+                MapLocation to_attack = rc.senseRobot(attack_id).getLocation();
+                if (rc.canAttack(to_attack)) {
+                    rc.attack(to_attack);
+                    System.out.println("ATTACKED A ROBOT!");
+                }
+
+            }
+
+            else {
+                    if (out_of_range_id != -1) {
+                        if (rc.canSenseRobot(out_of_range_id)) {
+                            if (fuzzyGoTo(rc, start_loc.directionTo(rc.senseRobot(out_of_range_id).getLocation()))) {
+                                System.out.println("MOVED TOWARDS ENEMY!");
+                            }
+                        }
+
+                    } else {
+
+                        RobotInfo [] local_robots = rc.senseNearbyRobots(20, rc.getTeam());
+
+                        boolean moved_from_friendly_archon = false;
+                        for (int i = 0; i<local_robots.length; i++) {
+                            if (local_robots[i].getType().equals(RobotType.ARCHON)) {
+                                Direction move_dir = start_loc.directionTo(local_robots[i].getLocation()).opposite();
+                                if (fuzzyGoTo(rc, move_dir)) {
+                                    moved_from_friendly_archon = true;
+                                    System.out.println("MOVED FROM HQ!");
+                                }
+                            }
+                        }
+
+                        if (!moved_from_friendly_archon) {
+                            if (fan_out(rc)) {
+                                System.out.println("FANNED OUT!");
+                            }
+                        }
+
+                    }
+            }
+        }
+
+    System.out.println("HAD ENOUGH BYTECODES LEFT TO SCAN");
+    scoutArchon(rc);
+    System.out.println("SCANNED FOR ARCHON");
+
+    }
+
+    /*my funcs*/
+
+    /* fan out ... can get written more efficiently lol*/
+    // perhaps to make it more efficient: if a test robot dist^2 is < 8, break out of loop and move in opposite direction to it
+    static boolean fan_out(RobotController rc) throws  GameActionException {
+        boolean moved = false;
+        Direction dir_to_move = Direction.CENTER;
+        boolean mean_was_center = false;
+
+        int x_sum = 0;
+        int y_sum = 0;
+        int counter = 0;
+        RobotInfo [] nearby_robots = rc.senseNearbyRobots();
+
+        for (int i=1; i<nearby_robots.length; i++) {
+            RobotInfo nearby_bot = nearby_robots[i];
+            if (nearby_bot.getType().equals(RobotType.ARCHON) && nearby_bot.getTeam().isPlayer()) {
+                for (int j = 1; j<nearby_robots.length + 1 && j<6; j++) {
+                    MapLocation nearby_robot_loc = nearby_robots[j-1].getLocation();
+                    x_sum += nearby_robot_loc.x;
+                    y_sum += nearby_robot_loc.y;
+                    counter++;
+                }
                 break;
             }
         }
 
-        // if archon hasn't been found
-        if (!archon_found) {
-            Direction dir = directions[rng.nextInt(directions.length)];
-            if (rc.canMove(dir)) {
-                rc.move(dir);
-                System.out.println("I moved!");
+        if (counter!=0) {
+            int x_mean = x_sum / counter;
+            int y_mean = y_sum / counter;
+            System.out.println("TESTTEST:" + x_mean+","+y_mean);
+            MapLocation mean_loc = new MapLocation(x_mean, y_mean);
+            dir_to_move = rc.getLocation().directionTo(mean_loc).opposite();
+            System.out.println(dir_to_move);
+            if (dir_to_move!=Direction.CENTER) {
+                if (fuzzyGoTo(rc, dir_to_move)) {
+                    System.out.println("MOVED AWAY FROM ALLIES");
+                    moved=true;
+                }
+            }
+
+            else {
+                mean_was_center=true;
+                System.out.println("MEAN WAS CENTER");
             }
         }
+
+        else {
+            for (int i = 0; i<7; i++) {
+                dir_to_move = cross_map_x[i];
+                if (fuzzyGoTo(rc, dir_to_move)) {
+                    System.out.println("I moved intentionally!");
+                    moved = true;
+                    break;
+                }
+            }
+        }
+
+        if (!mean_was_center&&!moved) {
+            for (int i = 0; i<7; i++) {
+                dir_to_move = cross_map_x[i];
+                if (fuzzyGoTo(rc, dir_to_move)) {
+                    System.out.println("I moved intentionally!");
+                    moved = true;
+                    break;
+                }
+            }
+        }
+
+
+
+
+        return moved;
+    }
+
+    /* try to move randomly */
+    static boolean moveRandomly(RobotController rc) throws GameActionException {
+        boolean moved = false;
+        Direction dir = directions[rng.nextInt(directions.length)];
+        if (rc.canMove(dir)) {
+            rc.move(dir);
+        }
+        return moved;
+    }
+
+    /* return random dir */
+    static Direction randomDir(RobotController rc) {
+        Direction dir = directions[rng.nextInt(directions.length)];
+        return dir;
+    }
+
+    /* fuzzy. if it can't move in given direction, try to move in closest angle dirs to desired one */
+    /* rip bytecodes :YEET: */
+    static boolean fuzzyGoTo(RobotController rc, Direction desired_dir) throws  GameActionException {
+        boolean moved = false;
+        Direction attempt_dir_left = desired_dir;
+        Direction attempt_dir_right = desired_dir;
+        firstloop:
+        for (int n=0; n<5; n++) {
+            for (int i = n; i<=n; i++) {
+                attempt_dir_left.rotateLeft();
+                attempt_dir_right.rotateRight();
+            }
+
+            if (rc.canMove(attempt_dir_right)) {
+                rc.move(attempt_dir_right);
+                moved = true;
+                break firstloop;
+            }
+
+            else if (rc.canMove(attempt_dir_left)) {
+                rc.move(attempt_dir_left);
+                moved = true;
+                break firstloop;
+            }
+        }
+        return moved;
+    }
+
+
+    /* COMS STUFF FROM DISCORD 1/8 2022 */
+    /**
+     * x Use the actual x location
+     * y Use the actual y location
+     * time Use the actual time (getRoundNum())
+     * mode 0 for turret / prototype 1 for portable
+     * arcNum 0 through 3
+     */
+
+    static void uploadArchon(RobotController rc, int x, int y, int time, int mode, int arcNum) throws  GameActionException{
+        rc.writeSharedArray(0 + arcNum, (x >> 2) + ((y >> 2) << 4) + ((time>>7) << 8) + (mode << 12));
+    }
+
+    static void scoutArchon(RobotController rc)  throws  GameActionException{
+        int arc4 = rc.readSharedArray(63);
+        if (0 < arc4) {
+            return;
+        }
+        int arc1 = rc.readSharedArray(60);
+        int arc2 = rc.readSharedArray(61);
+        int arc3 = rc.readSharedArray(62);
+
+        arc1 = arc1 == 0 ? 0b1111111111111 : (arc1 & 0b1111111111111);
+        arc2 = arc2 == 0 ? 0b1111111111111 : (arc2 & 0b1111111111111);
+        arc3 = arc3 == 0 ? 0b1111111111111 : (arc3 & 0b1111111111111);
+        arc4 = arc4 == 0 ? 0b1111111111111 : (arc4 & 0b1111111111111);
+
+        //adds an archon if spotted
+        RobotInfo[] nearby = rc.senseNearbyRobots(300, rc.getTeam().opponent());
+
+        for (RobotInfo robotInfo : nearby) {
+            if (robotInfo.getType().equals(RobotType.ARCHON)) {
+                if (robotInfo.getID() != arc1 && robotInfo.getID() != arc2 && robotInfo.getID() != arc3 && robotInfo.getID() != arc4) {
+                    if (arc1 == 0b1111111111111) {
+                        uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
+                        rc.writeSharedArray(60, robotInfo.getID() + 0b1000000000000000);
+                    } else if (arc2 == 0b1111111111111) {
+                        uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
+                        rc.writeSharedArray(610, robotInfo.getID() + 0b1000000000000000);
+                    } else if (arc3 == 0b1111111111111) {
+                        uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
+                        rc.writeSharedArray(62, robotInfo.getID() + 0b1000000000000000);
+                    } else {
+                        uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
+                        rc.writeSharedArray(63, robotInfo.getID() + 0b1000000000000000);
+                    }
+                }
+            }
+        }
+    }
+
+
+    // idk if we want to use 13 bytes on storing an id, probably good for now
+    static void uploadArchon(RobotController rc, int x, int y, int time, int mode, int arcNum, int id) throws  GameActionException{
+        rc.writeSharedArray(0 + arcNum, (x >> 2) + ((y >> 2) << 4) + ((time>>7) << 8) + (mode << 12));
+        rc.writeSharedArray(60 + arcNum, id);
+    }
+
+    /**
+     * arcNum (0-3) which arc you want
+     * return int[] thats {actual x, actual y, actual time, mode}
+     */
+    static int[] downloadArchon(RobotController rc, int arcNum)  throws  GameActionException{
+        int val = rc.readSharedArray(arcNum);
+
+        return new int[]{(val & 0b1111) << 2, (val & 0b11110000) >> 2, (val & 0b111100000000) >> 1, (val >> 12) & 0b1};
+    }
+
+    /**
+     * arcNum (0-3) which arc you want
+     * return int[] thats {actual x, actual y, actual time, mode, arcID}
+     */
+    static int[] downloadWID(RobotController rc, int arcNum)  throws  GameActionException{
+        int val = rc.readSharedArray(arcNum);
+        return new int[]{(val & 0b1111) << 2, (val & 0b11110000) >> 2, (val & 0b111100000000) >> 1, (val >> 12) & 0b1, rc.readSharedArray(60 + arcNum)};
     }
 
 }

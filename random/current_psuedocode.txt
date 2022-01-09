@@ -1,0 +1,23 @@
+// rough sketch for soldier
+
+check archon section of shared array.
+if an archon id is known:
+    if can attack archon:
+        attack archon;
+    else:
+        move towards archon
+
+    update archon location in shared array
+
+
+else:
+    if found archon: // do if can detect by type?
+        if can attack it:
+            attack it
+
+        update location for the archon id
+    else:
+        if enemy soldiers in range:
+            attack enemy soldier with lowest health percent
+        else:
+            initiate fan routine
