@@ -15,7 +15,30 @@ lowest health nearby enemy loc
 maplocation nearest friendly
 
 check archon section of shared array. 
-if an archon location is known: 
+if an archon id is known: 
+    if can attack archon: 
+        attack archon; 
+    else: 
+        move towards archon
+    
+    update archon location in shared array
+    
+
+else:
+    if found archon: // do if can detect by type? 
+        if can attack it: 
+            attack it
+            
+        update location for the archon id
+    else: 
+        if enemy soldiers in range: 
+            attack enemy soldier with lowest health percent
+        else: 
+            initiate fan routine 
+   
+   
+
+
     if multiple archon locations are known: 
         if multiple archons are within attack distance: 
             try to attack the one with lowest health. 
