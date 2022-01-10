@@ -74,10 +74,11 @@ public strictfp class RobotPlayer {
 
         // Hello world! Standard output is very useful for debugging.
         // Everything you say here will be directly viewable in your terminal when you run a match!
-        System.out.println("I'm a " + rc.getType() + " and I just got created! I have health " + rc.getHealth());
+        // System.out.println("I'm a " + rc.getType() + " and I just got created! I have health " + rc.getHealth());
 
         // You can also use indicators to save debug notes in replays.
         rc.setIndicatorString("Hello world!");
+                RobotPlayer.rc=rc;
 
         while (true) {
             // This code runs during the entire lifespan of the robot, which is why it is in an infinite
@@ -85,7 +86,7 @@ public strictfp class RobotPlayer {
             // loop, we call Clock.yield(), signifying that we've done everything we want to do.
 
             turnCount += 1;  // We have now been alive for one more turn!
-            System.out.println("Age: " + turnCount + "; Location: " + rc.getLocation());
+            // System.out.println("Age: " + turnCount + "; Location: " + rc.getLocation());
 
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
@@ -138,7 +139,7 @@ public strictfp class RobotPlayer {
      * Run a single turn for an Archon.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
-
+static RobotController rc;
     static void runArchon(RobotController rc) throws GameActionException {
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
@@ -163,7 +164,7 @@ public strictfp class RobotPlayer {
     USE THIS CODE WHENEVER YOU BUILD A ROBOT OF THE TYPE
     IE, ONCE THE ARCHON HAS CODE FOR BUILDING BUILDERS MAKE SURE IT CALLS
     "rc.writeSharedArray(7, rc.readSharedArray(7) + 1);" AFTER BUILDING THE BUILDER
-    
+
     rc.buildRobot(RobotType.BUILDER, dir);
     rc.writeSharedArray(7, rc.readSharedArray(7) + 1);
 
@@ -204,7 +205,7 @@ public strictfp class RobotPlayer {
         Direction dir = directions[rng.nextInt(directions.length)];
         if (rc.canMove(dir)) {
             rc.move(dir);
-            System.out.println("I moved!");
+            // System.out.println("I moved!");
         }
     }
 
@@ -216,23 +217,23 @@ public strictfp class RobotPlayer {
         MapLocation start_loc = rc.getLocation();
         // downloadWID: {actual x, actual y, actual time, mode, arcID}
         if (rc.readSharedArray(60) != 0) { // if there's info about archon in shared array
-            System.out.println("FOUND ARCHON. DOWNLOADING INFO.");
+            // System.out.println("FOUND ARCHON. DOWNLOADING INFO.");
             int [] archon_info = downloadWID(rc, 0);
             int archon_id = archon_info[4];
             MapLocation read_archon_loc = new MapLocation(archon_info[0], archon_info[1]);
-            System.out.println("IT'S LOCATED AT " +read_archon_loc+"!");
+            // System.out.println("IT'S LOCATED AT " +read_archon_loc+"!");
             if (rc.canSenseRobot(archon_id)) {
                 RobotInfo local_archon_info = rc.senseRobot(archon_id);
                 MapLocation archon_loc = local_archon_info.getLocation();
                 if (rc.canAttack(archon_loc)) {
                     rc.attack(archon_loc);
-                    System.out.println("Attacked an ARCHON!");
+                    // System.out.println("Attacked an ARCHON!");
                 }
             }
             else {
                 Direction dir_to_archon = start_loc.directionTo(read_archon_loc);
                 if (fuzzyGoTo(rc, dir_to_archon)) {
-                    System.out.println("MOVED TOWARDS ARCHON!");
+                    // System.out.println("MOVED TOWARDS ARCHON!");
                 }
             }
         }
@@ -490,7 +491,7 @@ public strictfp class RobotPlayer {
         int val = rc.readSharedArray(arcNum);
         return new int[]{(val & 0b1111) << 2, (val & 0b11110000) >> 2, (val & 0b111100000000) >> 1, (val >> 12) & 0b1, rc.readSharedArray(60 + arcNum)};
     }
-    
+
     /**
      * x Use the actual x location
      * y Use the actual y location
@@ -539,7 +540,7 @@ public strictfp class RobotPlayer {
             }
         }
     }
-    
+
     static void generalScout(RobotController rc)  throws  GameActionException{
         if (((rc.getRoundNum() ^ rc.getID()) & 0b11) != 0) {
             return;
@@ -554,7 +555,7 @@ public strictfp class RobotPlayer {
             scoutSoldier(rc, nearby, s24);
         }
     }
-    
+
     static int getMiners() throws GameActionException {
             return rc.readSharedArray(6) & 0b11111111;
     }
