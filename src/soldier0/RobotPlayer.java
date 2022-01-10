@@ -147,16 +147,35 @@ public strictfp class RobotPlayer {
             rc.setIndicatorString("Trying to build a miner");
             if (rc.canBuildRobot(RobotType.MINER, dir)) {
                 rc.buildRobot(RobotType.MINER, dir);
+                rc.writeSharedArray(6, rc.readSharedArray(6) + 1);
             }
         } else {
             // Let's try to build a soldier.
             rc.setIndicatorString("Trying to build a soldier");
             if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
                 rc.buildRobot(RobotType.SOLDIER, dir);
+                rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
             }
         }
     }
+    /*
+    !!!!!!MESSAGE TO THADDAEUS!!!!!!!!
+    USE THIS CODE WHENEVER YOU BUILD A ROBOT OF THE TYPE
+    IE, ONCE THE ARCHON HAS CODE FOR BUILDING BUILDERS MAKE SURE IT CALLS
+    "rc.writeSharedArray(7, rc.readSharedArray(7) + 1);" AFTER BUILDING THE BUILDER
+    
+    rc.buildRobot(RobotType.BUILDER, dir);
+    rc.writeSharedArray(7, rc.readSharedArray(7) + 1);
 
+    rc.buildRobot(RobotType.SAGE, dir);
+    rc.writeSharedArray(7, rc.readSharedArray(7) + 0b1000000);
+
+    rc.buildRobot(RobotType.WATCHTOWER, dir);
+    rc.writeSharedArray(8, rc.readSharedArray(8) + 1);
+
+    rc.buildRobot(RobotType.LABORATORY, dir);
+    rc.writeSharedArray(8, rc.readSharedArray(8) + 0b10000);
+    */
     /**
      * Run a single turn for a Miner.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
@@ -286,7 +305,7 @@ public strictfp class RobotPlayer {
         }
 
     System.out.println("HAD ENOUGH BYTECODES LEFT TO SCAN");
-    scoutArchon(rc);
+    generalScout(rc);
     System.out.println("SCANNED FOR ARCHON");
 
     }
@@ -424,41 +443,22 @@ public strictfp class RobotPlayer {
         rc.writeSharedArray(0 + arcNum, (x >> 2) + ((y >> 2) << 4) + ((time>>7) << 8) + (mode << 12));
     }
 
-    static void scoutArchon(RobotController rc)  throws  GameActionException{
-        if (((rc.getRoundNum() ^ rc.getID()) & 0b11) != 0) {
-            return;
-        }
-        int arc4 = rc.readSharedArray(63);
-        if (0 < arc4) {
-            return;
-        }
+    static void scoutArchon(RobotController rc, RobotInfo[] nearby, int arc4)  throws  GameActionException{
         int arc1 = rc.readSharedArray(60);
         int arc2 = rc.readSharedArray(61);
         int arc3 = rc.readSharedArray(62);
 
-        arc1 = arc1 == 0 ? 0b1111111111111 : (arc1 & 0b1111111111111);
-        arc2 = arc2 == 0 ? 0b1111111111111 : (arc2 & 0b1111111111111);
-        arc3 = arc3 == 0 ? 0b1111111111111 : (arc3 & 0b1111111111111);
-        arc4 = arc4 == 0 ? 0b1111111111111 : (arc4 & 0b1111111111111);
-
-        //adds an archon if spotted
-        RobotInfo[] nearby = rc.senseNearbyRobots(300, rc.getTeam().opponent());
-
         for (RobotInfo robotInfo : nearby) {
             if (robotInfo.getType().equals(RobotType.ARCHON)) {
                 if (robotInfo.getID() != arc1 && robotInfo.getID() != arc2 && robotInfo.getID() != arc3 && robotInfo.getID() != arc4) {
-                    if (arc1 == 0b1111111111111) {
+                    if (arc1 == 0) {
                         uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
-                        rc.writeSharedArray(60, robotInfo.getID() + 0b1000000000000000);
-                    } else if (arc2 == 0b1111111111111) {
+                    } else if (arc2 == 0) {
                         uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
-                        rc.writeSharedArray(61, robotInfo.getID() + 0b1000000000000000);
-                    } else if (arc3 == 0b1111111111111) {
+                    } else if (arc3 == 0) {
                         uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
-                        rc.writeSharedArray(62, robotInfo.getID() + 0b1000000000000000);
                     } else {
                         uploadArchon(rc, robotInfo.getLocation().x, robotInfo.getLocation().y, rc.getRoundNum(), (robotInfo.getMode().equals(RobotMode.PORTABLE) ? 1 : 0), 0, robotInfo.getID());
-                        rc.writeSharedArray(63, robotInfo.getID() + 0b1000000000000000);
                     }
                 }
             }
@@ -490,5 +490,92 @@ public strictfp class RobotPlayer {
         int val = rc.readSharedArray(arcNum);
         return new int[]{(val & 0b1111) << 2, (val & 0b11110000) >> 2, (val & 0b111100000000) >> 1, (val >> 12) & 0b1, rc.readSharedArray(60 + arcNum)};
     }
+    
+    /**
+     * x Use the actual x location
+     * y Use the actual y location
+     * sNum 0 through 3
+     */
+    static void uploadSoldier(RobotController rc, int x, int y, int sNum) throws  GameActionException{
+        int ind = 4 + (sNum & 0b1);
+        rc.writeSharedArray(ind, (rc.readSharedArray(ind) & (0b11111111 << (8 & (-(sNum >> 1))))) + (((x >> 2) + ((y >> 2) << 4)) << ((1 - (sNum >> 1)) << 3)));
+    }
 
+    /**
+     * x Use the actual x location
+     * y Use the actual y location
+     */
+    static int[] downloadSoldier(RobotController rc, int sNum) throws  GameActionException{
+        int val = (rc.readSharedArray(4 + (sNum & 0b1)) >> ((1 - (sNum >> 1)) << 3)) & 0b11111111;
+        return new int[]{(val & 0b1111) << 2, (val & 0b11110000) >> 2};
+    }
+
+    static void scoutSoldier(RobotController rc, RobotInfo[] nearby, int s24)  throws  GameActionException{
+        int s13 = rc.readSharedArray(4);
+
+        int s1 = s13 & 0b11111111;
+        int s3 = s13 >> 8;
+        int s2 = s24 & 0b11111111;
+        int s4 = s24 >> 8;
+        int robotx;
+        int roboty;
+        int robotCombined;
+        for (RobotInfo robotInfo : nearby) {
+            if (robotInfo.getType().equals(RobotType.SOLDIER)) {
+                robotx = robotInfo.getLocation().x;
+                roboty = robotInfo.getLocation().y;
+                robotCombined = ((robotx >> 2) + ((roboty >> 2) << 4));
+                if (robotCombined != s1 && robotCombined != s2 && robotCombined != s3 && robotCombined != s4) {
+                    if (s1 == 0) {
+                        uploadSoldier(rc, robotx, roboty, 0);
+                    } else if (s2 == 0) {
+                        uploadSoldier(rc, robotx, roboty, 1);
+                    } else if (s3 == 0) {
+                        uploadSoldier(rc, robotx, roboty, 2);
+                    } else {
+                        uploadSoldier(rc, robotx, roboty, 3);
+                    }
+                }
+            }
+        }
+    }
+    
+    static void generalScout(RobotController rc)  throws  GameActionException{
+        if (((rc.getRoundNum() ^ rc.getID()) & 0b11) != 0) {
+            return;
+        }
+        RobotInfo[] nearby = rc.senseNearbyRobots(300, rc.getTeam().opponent());
+        int arc4 = rc.readSharedArray(63);
+        if (0 == arc4) {
+            scoutArchon(rc, nearby, arc4);
+        }
+        int s24 = rc.readSharedArray(5);
+        if (0 == (s24 >> 8)) {
+            scoutSoldier(rc, nearby, s24);
+        }
+    }
+    
+    static int getMiners() throws GameActionException {
+            return rc.readSharedArray(6) & 0b11111111;
+    }
+
+    static int getSoldiers() throws GameActionException {
+        return rc.readSharedArray(6) & 0b1111111100000000;
+    }
+
+    static int getBuilders() throws GameActionException {
+        return rc.readSharedArray(7) & 0b111111;
+    }
+
+    static int getSages() throws GameActionException {
+        return rc.readSharedArray(76) & 0b111111000000;
+    }
+
+    static int getWatchtowers() throws GameActionException {
+        return rc.readSharedArray(8) & 0b1111;
+    }
+
+    static int getLaboratories() throws GameActionException {
+        return rc.readSharedArray(8) & 0b11110000;
+    }
 }
