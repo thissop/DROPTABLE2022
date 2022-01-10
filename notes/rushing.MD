@@ -1,5 +1,11 @@
 # Rushing Offense Notes
-## Initial Ideas
+
+## strikeforce0
+
+* General Summary: use random assignment based on last digit of ID for soldiers to either scout or stay close to base. While some soldiers are scouting for enemy soldiers, others are staying close to base building up the army. once an enemy soldier is found, more soldiers go out to attack and hopefully determine a "best guess" archon location (or even locate the archon itself). Once a best guess location (of high enemy density) is found (wait maybe this is something to measure and record...record high densitity regions coordinates and densities), or once archon loc is found, send out a combined strikeforce of lots of soldiers assisted by a sage and accompanied by miners (to pick up their dropped lead). Sage should execute charge if in high density region o fenemy droids, or fury if dangerous enemy buildings 
+* If enemy sage is detected in range of archon, should archon go to portable mode? 
+
+## Initial Idea
 * "Fan Out" search method: while the location of the Enemy Archon is unknown, I wonder if this would be a more efficient routine to find it. 
     * I wonder if a way to do this is to calculate the mean location of all friendly allies, and if that value is not the current value of the given robot, to move in the opposite direction to that average location. 
 
