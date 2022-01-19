@@ -1,4 +1,4 @@
-package soldier0;
+package strikeforce0;
 
 import battlecode.common.*;
 import com.sun.glass.ui.Robot;
@@ -142,46 +142,6 @@ public strictfp class RobotPlayer {
     static void runArchon(RobotController rc) throws GameActionException {
         // Pick a direction to build in.
         Direction dir = directions[rng.nextInt(directions.length)];
-
-        int num_miners = 0;
-        int num_soldiers = 0;
-
-        num_miners = rc.readSharedArray(6) & 0b11111111;
-        num_soldiers = rc.readSharedArray(6) & 0b1111111100000000;
-
-        if (num_miners>=0&& num_miners<5) {
-            rc.setIndicatorString("Trying to build a miner");
-            if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                rc.buildRobot(RobotType.MINER, dir);
-                rc.writeSharedArray(6, rc.readSharedArray(6) + 1);
-            }
-        }
-
-        else if (num_soldiers<5&&num_soldiers>=0) {
-            rc.setIndicatorString("Trying to build a soldier");
-            if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
-                rc.buildRobot(RobotType.SOLDIER, dir);
-                rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
-            }
-        }
-
-        else if (num_soldiers<2*num_miners&&rc.getRoundNum()>150) {
-            rc.setIndicatorString("Trying to build a soldier");
-            if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
-                rc.buildRobot(RobotType.SOLDIER, dir);
-                rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
-            }
-        }
-
-        else {
-            rc.setIndicatorString("Trying to build a miner");
-            if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                rc.buildRobot(RobotType.MINER, dir);
-                rc.writeSharedArray(6, rc.readSharedArray(6) + 1);
-            }
-        }
-
-        /*
         if (rng.nextBoolean()) {
             // Let's try to build a miner.
             rc.setIndicatorString("Trying to build a miner");
@@ -197,16 +157,13 @@ public strictfp class RobotPlayer {
                 rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
             }
         }
-        */
-
     }
-
     /*
     !!!!!!MESSAGE TO THADDAEUS!!!!!!!!
     USE THIS CODE WHENEVER YOU BUILD A ROBOT OF THE TYPE
     IE, ONCE THE ARCHON HAS CODE FOR BUILDING BUILDERS MAKE SURE IT CALLS
     "rc.writeSharedArray(7, rc.readSharedArray(7) + 1);" AFTER BUILDING THE BUILDER
-    
+
     rc.buildRobot(RobotType.BUILDER, dir);
     rc.writeSharedArray(7, rc.readSharedArray(7) + 1);
 
@@ -315,45 +272,43 @@ public strictfp class RobotPlayer {
             }
 
             else {
-                    if (out_of_range_id != -1) {
-                        if (rc.canSenseRobot(out_of_range_id)) {
-                            if (fuzzyGoTo(rc, start_loc.directionTo(rc.senseRobot(out_of_range_id).getLocation()))) {
-                                System.out.println("MOVED TOWARDS ENEMY!");
-                            }
+                if (out_of_range_id != -1) {
+                    if (rc.canSenseRobot(out_of_range_id)) {
+                        if (fuzzyGoTo(rc, start_loc.directionTo(rc.senseRobot(out_of_range_id).getLocation()))) {
+                            System.out.println("MOVED TOWARDS ENEMY!");
                         }
-
-                    } else {
-
-                        RobotInfo [] local_robots = rc.senseNearbyRobots(20, rc.getTeam());
-
-                        boolean moved_from_friendly_archon = false;
-                        for (int i = 0; i<local_robots.length; i++) {
-                            if (local_robots[i].getType().equals(RobotType.ARCHON)) {
-                                Direction move_dir = start_loc.directionTo(local_robots[i].getLocation()).opposite();
-                                if (fuzzyGoTo(rc, move_dir)) {
-                                    moved_from_friendly_archon = true;
-                                    System.out.println("MOVED FROM HQ!");
-                                }
-                            }
-                        }
-
-                        if (!moved_from_friendly_archon) {
-                            if (fan_out(rc)) {
-                                System.out.println("FANNED OUT!");
-                            }
-                        }
-
                     }
+
+                } else {
+
+                    RobotInfo [] local_robots = rc.senseNearbyRobots(20, rc.getTeam());
+
+                    boolean moved_from_friendly_archon = false;
+                    for (int i = 0; i<local_robots.length; i++) {
+                        if (local_robots[i].getType().equals(RobotType.ARCHON)) {
+                            Direction move_dir = start_loc.directionTo(local_robots[i].getLocation()).opposite();
+                            if (fuzzyGoTo(rc, move_dir)) {
+                                moved_from_friendly_archon = true;
+                                System.out.println("MOVED FROM HQ!");
+                            }
+                        }
+                    }
+
+                    if (!moved_from_friendly_archon) {
+                        if (fan_out(rc)) {
+                            System.out.println("FANNED OUT!");
+                        }
+                    }
+
+                }
             }
         }
 
-    System.out.println("HAD ENOUGH BYTECODES LEFT TO SCAN");
-    generalScout(rc);
-    System.out.println("SCANNED FOR ARCHON");
+        System.out.println("HAD ENOUGH BYTECODES LEFT TO SCAN");
+        generalScout(rc);
+        System.out.println("SCANNED FOR ARCHON");
 
     }
-
-    // static void runSage(RobotController rc) throws Game
 
     /*my funcs*/
 
@@ -423,10 +378,6 @@ public strictfp class RobotPlayer {
                 }
             }
         }
-
-
-
-
         return moved;
     }
 
@@ -535,7 +486,7 @@ public strictfp class RobotPlayer {
         int val = rc.readSharedArray(arcNum);
         return new int[]{(val & 0b1111) << 2, (val & 0b11110000) >> 2, (val & 0b111100000000) >> 1, (val >> 12) & 0b1, rc.readSharedArray(60 + arcNum)};
     }
-    
+
     /**
      * x Use the actual x location
      * y Use the actual y location
@@ -584,7 +535,7 @@ public strictfp class RobotPlayer {
             }
         }
     }
-    
+
     static void generalScout(RobotController rc)  throws  GameActionException{
         if (((rc.getRoundNum() ^ rc.getID()) & 0b11) != 0) {
             return;
@@ -600,30 +551,5 @@ public strictfp class RobotPlayer {
         }
     }
 
-    /*
-    static int getMiners(RobotPlayer rc) throws GameActionException {
-            return rc.readSharedArray(6) & 0b11111111;
-    }
-
-    static int getSoldiers() throws GameActionException {
-        return rc.readSharedArray(6) & 0b1111111100000000;
-    }
-
-    static int getBuilders() throws GameActionException {
-        return rc.readSharedArray(7) & 0b111111;
-    }
-
-    static int getSages() throws GameActionException {
-        return rc.readSharedArray(76) & 0b111111000000;
-    }
-
-    static int getWatchtowers() throws GameActionException {
-        return rc.readSharedArray(8) & 0b1111;
-    }
-
-    static int getLaboratories() throws GameActionException {
-        return rc.readSharedArray(8) & 0b11110000;
-    }
-    */
 
 }
