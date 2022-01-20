@@ -162,11 +162,6 @@ public strictfp class RobotPlayer {
         }
 
 
-
-
-
-
-
     /*
      * Run a single turn for a Miner.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
@@ -220,6 +215,8 @@ public strictfp class RobotPlayer {
         }
     }
 
+    /*add code
+    * to not just upgrade prototypes but to repair damaged nearby buildings */
     static void runBuilder(RobotController rc) throws GameActionException {
         int manufactured_towers = rc.readSharedArray(8) & 0b1111;
 
@@ -237,11 +234,11 @@ public strictfp class RobotPlayer {
             }
         }
 
-        Direction [] tower_dirs = {Direction.EAST, Direction.WEST};
+        Direction [] tower_dirs = {Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH};
 
         boolean built = false;
 
-        if (manufactured_towers<4) {
+        if (manufactured_towers<8) {
             if (!hq_loc.equals(rc.getLocation())) {
                 if (rc.getLocation().directionTo(hq_loc).equals(Direction.NORTH)) {
                     for (Direction test_dir : tower_dirs) {
