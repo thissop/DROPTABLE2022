@@ -1,6 +1,7 @@
 package defender_0;
 
 import battlecode.common.*;
+
 import java.util.Random;
 
 /**
@@ -25,7 +26,9 @@ public strictfp class RobotPlayer {
      */
     static final Random rng = new Random(6147);
 
-    /** Array containing all the possible movement directions. */
+    /**
+     * Array containing all the possible movement directions.
+     */
     static final Direction[] directions = {
             Direction.NORTH,
             Direction.NORTHEAST,
@@ -41,8 +44,8 @@ public strictfp class RobotPlayer {
      * run() is the method that is called when a robot is instantiated in the Battlecode world.
      * It is like the main function for your robot. If this method returns, the robot dies!
      *
-     * @param rc  The RobotController object. You use it to perform actions from this robot, and to get
-     *            information on its current status. Essentially your portal to interacting with the world.
+     * @param rc The RobotController object. You use it to perform actions from this robot, and to get
+     *           information on its current status. Essentially your portal to interacting with the world.
      **/
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
@@ -69,13 +72,24 @@ public strictfp class RobotPlayer {
                 // use different strategies on different robots. If you wish, you are free to rewrite
                 // this into a different control structure!
                 switch (rc.getType()) {
-                    case ARCHON:     runArchon(rc);  break;
-                    case MINER:      runMiner(rc);   break;
-                    case SOLDIER:    runSoldier(rc); break;
+                    case ARCHON:
+                        runArchon(rc);
+                        break;
+                    case MINER:
+                        runMiner(rc);
+                        break;
+                    case SOLDIER:
+                        runSoldier(rc);
+                        break;
                     case LABORATORY: // Examplefuncsplayer doesn't use any of these robot types below.
-                    case WATCHTOWER: runWatchTower(rc); break;
-                    case BUILDER:    runBuilder(rc); break;
-                    case SAGE:       break;
+                    case WATCHTOWER:
+                        runWatchTower(rc);
+                        break;
+                    case BUILDER:
+                        runBuilder(rc);
+                        break;
+                    case SAGE:
+                        break;
                 }
             } catch (GameActionException e) {
                 // Oh no! It looks like we did something illegal in the Battlecode world. You should
@@ -110,35 +124,29 @@ public strictfp class RobotPlayer {
         int manufactured_soldiers = rc.readSharedArray(6) & 0b1111111100000000;
         int manufactured_builders = rc.readSharedArray(7) & 0b111111;
 
-        if (manufactured_miners<10) {
+        if (manufactured_miners < 10) {
             Direction dir = directions[rng.nextInt(directions.length)];
             rc.setIndicatorString("Trying to build a miner");
             if (rc.canBuildRobot(RobotType.MINER, dir)) {
                 rc.buildRobot(RobotType.MINER, dir);
                 rc.writeSharedArray(6, rc.readSharedArray(6) + 1);
             }
-        }
-
-        else if (manufactured_soldiers<5) {
+        } else if (manufactured_soldiers < 5) {
             Direction dir = directions[rng.nextInt(directions.length)];
             rc.setIndicatorString("Trying to build a soldier");
             if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
                 rc.buildRobot(RobotType.SOLDIER, dir);
                 rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
             }
-        }
-
-        else if (manufactured_builders<3) {
-                Direction [] builder_options = {Direction.NORTH, Direction.SOUTH};
-                Direction dir = builder_options[rng.nextInt(builder_options.length)];
-                rc.setIndicatorString("Trying to build a builder");
-                if (rc.canBuildRobot(RobotType.BUILDER, dir)) {
-                    rc.buildRobot(RobotType.BUILDER, dir);
-                    rc.writeSharedArray(7, rc.readSharedArray(7) + 1);
-                }
+        } else if (manufactured_builders < 3) {
+            Direction[] builder_options = {Direction.NORTH, Direction.SOUTH};
+            Direction dir = builder_options[rng.nextInt(builder_options.length)];
+            rc.setIndicatorString("Trying to build a builder");
+            if (rc.canBuildRobot(RobotType.BUILDER, dir)) {
+                rc.buildRobot(RobotType.BUILDER, dir);
+                rc.writeSharedArray(7, rc.readSharedArray(7) + 1);
             }
-
-        else {
+        } else {
             Direction dir = directions[rng.nextInt(directions.length)];
             if (rng.nextBoolean()) {
                 // Let's try to build a miner.
@@ -159,7 +167,7 @@ public strictfp class RobotPlayer {
             }
         }
 
-        }
+    }
 
 
     /*
@@ -216,7 +224,7 @@ public strictfp class RobotPlayer {
     }
 
     /*add code
-    * to not just upgrade prototypes but to repair damaged nearby buildings */
+     * to not just upgrade prototypes but to repair damaged nearby buildings */
     static void runBuilder(RobotController rc) throws GameActionException {
         int manufactured_towers = rc.readSharedArray(8) & 0b1111;
 
@@ -227,18 +235,18 @@ public strictfp class RobotPlayer {
         for (RobotInfo nearby_robot : rc.senseNearbyRobots()) {
             if (nearby_robot.getTeam().isPlayer() && nearby_robot.getType().equals(RobotType.ARCHON)) {
                 test_dist = rc.getLocation().distanceSquaredTo(nearby_robot.getLocation());
-                if (test_dist<closest_hq_dist) {
+                if (test_dist < closest_hq_dist) {
                     closest_hq_dist = test_dist;
                     hq_loc = nearby_robot.getLocation();
                 }
             }
         }
 
-        Direction [] tower_dirs = {Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH};
+        Direction[] tower_dirs = {Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH};
 
         boolean built = false;
 
-        if (manufactured_towers<8) {
+        if (manufactured_towers < 8) {
             if (!hq_loc.equals(rc.getLocation())) {
                 if (rc.getLocation().directionTo(hq_loc).equals(Direction.NORTH)) {
                     for (Direction test_dir : tower_dirs) {
@@ -248,8 +256,7 @@ public strictfp class RobotPlayer {
                             rc.writeSharedArray(8, rc.readSharedArray(8) + 1);
                         }
                     }
-                }
-                else if (rc.getLocation().directionTo(hq_loc).equals(Direction.SOUTH)) {
+                } else if (rc.getLocation().directionTo(hq_loc).equals(Direction.SOUTH)) {
                     for (Direction test_dir : tower_dirs) {
                         if (rc.canBuildRobot(RobotType.WATCHTOWER, test_dir)) {
                             rc.buildRobot(RobotType.WATCHTOWER, test_dir);
@@ -278,21 +285,21 @@ public strictfp class RobotPlayer {
 
     /*IMPROVE ATTACK ALGO!*/
     /*
-    * Perhaps by choosing based on a combination of enemy type, enemy closeness to our hq, enemy health.
-    * currently attacks closest and lowest fighter, then closest fighter, then lowest fighter, then lowest non fighter
-    * maybe we make three arrays: attack priority (based on type), ordinal distance (order in distance from robot), and health order
-    * we can add all three of those values for each enemy robot, and attack the robot with the minimum or something
-    * for now it just attacks first robot it can
-    * */
+     * Perhaps by choosing based on a combination of enemy type, enemy closeness to our hq, enemy health.
+     * currently attacks closest and lowest fighter, then closest fighter, then lowest fighter, then lowest non fighter
+     * maybe we make three arrays: attack priority (based on type), ordinal distance (order in distance from robot), and health order
+     * we can add all three of those values for each enemy robot, and attack the robot with the minimum or something
+     * for now it just attacks first robot it can
+     * */
 
     static void runWatchTower(RobotController rc) throws GameActionException {
-        RobotInfo [] nearby_enemies = rc.senseNearbyRobots(20, rc.getTeam().opponent());
+        RobotInfo[] nearby_enemies = rc.senseNearbyRobots(20, rc.getTeam().opponent());
         for (RobotInfo nearby_enemy : nearby_enemies) {
-                if (rc.canAttack(nearby_enemy.getLocation())) {
-                    rc.attack(nearby_enemy.getLocation());
-                    System.out.println("Attacked a nearby robot!");
-                    break;
-                }
+            if (rc.canAttack(nearby_enemy.getLocation())) {
+                rc.attack(nearby_enemy.getLocation());
+                System.out.println("Attacked a nearby robot!");
+                break;
+            }
         }
     }
 
