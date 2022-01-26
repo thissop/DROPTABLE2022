@@ -1,11 +1,7 @@
-package rush_only;
+package rush_with_defense;
 
 import battlecode.common.*;
-import scala.collection.Map;
 
-import java.util.Arrays;
-
-import java.awt.*;
 import java.util.Random;
 
 /**
@@ -88,7 +84,7 @@ public strictfp class RobotPlayer {
                 // world. Remember, uncaught exceptions cause your robot to explode!
                 System.out.println(rc.getType() + " Exception");
                 e.printStackTrace();
-                rc.resign();
+                //rc.resign(); // REMOVE!!!
 
             } catch (Exception e) {
                 // Oh no! It looks like our code tried to do something bad. This isn't a
@@ -113,12 +109,12 @@ public strictfp class RobotPlayer {
      */
     static void runArchon(RobotController rc) throws GameActionException {
 
+        // do it every ten in case of map flip or something messes it up
         if (turnCount==0||turnCount%10==0) {
 
             int archon_information [] = downloadArchon(rc, 1);
             int arch_x = archon_information[0];
             int arch_y = archon_information[1];
-            //MapLocation friendly_archon_loc = new MapLocation(arch_x, arch_y);
 
             // write own location if
             if (arch_x+arch_y==0) {
@@ -133,7 +129,10 @@ public strictfp class RobotPlayer {
 
         int manufactured_miners = rc.readSharedArray(6) & 0b11111111;
         int manufactured_soldiers = rc.readSharedArray(6) & 0b1111111100000000;
-        int manufactured_builders = rc.readSharedArray(7) & 0b111111;
+
+        System.out.println("MANUFACTURED SOLDIERS: "+manufactured_soldiers);
+        System.out.println("MANUFACTURED MINERS: "+manufactured_miners);
+
 
         if (manufactured_miners<5) {
             Direction dir = directions[rng.nextInt(directions.length)];
@@ -141,6 +140,7 @@ public strictfp class RobotPlayer {
             if (rc.canBuildRobot(RobotType.MINER, dir)) {
                 rc.buildRobot(RobotType.MINER, dir);
                 rc.writeSharedArray(6, rc.readSharedArray(6) + 1);
+
             }
         }
 
@@ -153,23 +153,50 @@ public strictfp class RobotPlayer {
             }
         }
 
-        //rc.sense
-
-
-        /*
-        else if (manufactured_builders<) {
-            Direction [] builder_options = {Direction.NORTH, Direction.SOUTH};
-            Direction dir = builder_options[rng.nextInt(builder_options.length)];
-            rc.setIndicatorString("Trying to build a builder");
-            if (rc.canBuildRobot(RobotType.BUILDER, dir)) {
-                rc.buildRobot(RobotType.BUILDER, dir);
-                rc.writeSharedArray(7, rc.readSharedArray(7) + 1);
-            }
-        }
-         */
-
         else {
 
+            boolean nearby_builder = true; // FFFFFFF
+            for (RobotInfo nearby_robot : rc.senseNearbyRobots(34, rc.getTeam())) {
+                RobotType nearby_type = nearby_robot.getType();
+                if (nearby_type.equals(RobotType.BUILDER)||nearby_type.equals(RobotType.WATCHTOWER)) {
+                    //nearby_builder = true;
+                    break;
+                }
+            }
+
+            if (!nearby_builder) {
+                Direction [] builder_options = {Direction.NORTH, Direction.SOUTH};
+                Direction dir = builder_options[rng.nextInt(builder_options.length)];
+                if (rc.canBuildRobot(RobotType.BUILDER, dir)) {
+                    rc.buildRobot(RobotType.BUILDER, dir);
+                }
+            } else {
+
+                double soldier_miner_ratio = (double) manufactured_soldiers / manufactured_miners;
+                System.out.println("SOLDIER:MINER RATIO-->"+soldier_miner_ratio);
+                if (soldier_miner_ratio>=4) {
+                    // try to build a miner
+                    for (Direction miner_dir : directions) {
+                        if (rc.canBuildRobot(RobotType.MINER, miner_dir)) {
+                            rc.buildRobot(RobotType.MINER, miner_dir);
+                            rc.writeSharedArray(6, rc.readSharedArray(6) + 1);
+                            break;
+                        }
+                    }
+                } else {
+                    // try to build a soldier
+                    for (Direction soldier_dir : directions) {
+                        if (rc.canBuildRobot(RobotType.SOLDIER, soldier_dir)) {
+                            rc.buildRobot(RobotType.SOLDIER, soldier_dir);
+                            rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+            /*
             Direction dir = directions[rng.nextInt(directions.length)];
             rc.setIndicatorString("Trying to build a soldier");
             if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
@@ -177,82 +204,16 @@ public strictfp class RobotPlayer {
                 System.out.println("Built a soldier!");
                 rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
             }
-
-
-
-            /*
-            boolean nearby_builder = false;
-
-            // first try to build builder
-            for (RobotInfo nearby_robot : rc.senseNearbyRobots(34, rc.getTeam())) {
-                if (nearby_robot.getType().equals(RobotType.BUILDER)) {
-                    nearby_builder = true;
-                    break;
-                }
-            }
-
-            if (!nearby_builder) {
-                Direction[] builder_options = {Direction.NORTH, Direction.SOUTH};
-                Direction dir = builder_options[rng.nextInt(builder_options.length)];
-                rc.setIndicatorString("Trying to build a builder");
-                if (rc.canBuildRobot(RobotType.BUILDER, dir)) {
-                    rc.buildRobot(RobotType.BUILDER, dir);
-                    System.out.println("BUILD A BUILDER!");
-                    rc.writeSharedArray(7, rc.readSharedArray(7) + 1); // write that it built a builder .. FIX!
-                }
-            } else {
-                // see if enemy archon is known to adjust ratio of manufacture
-
-                double soldier_miner_ratio = (double) manufactured_soldiers / manufactured_miners;
-
-                boolean enemy_archon_known = false;
-
-                for (int i = 0; i < 4; i++) {
-                    int[] queried_archon_info = downloadArchon(rc, i);
-                    if (queried_archon_info[0] + queried_archon_info[1] > 0) {
-                        enemy_archon_known = true;
-                        break;
-                    }
-                }
-
-                Direction dir = directions[rng.nextInt(directions.length)];
-
-                boolean build_miner = false;
-
-                if (enemy_archon_known) {
-                    if (soldier_miner_ratio > 5) {
-                        build_miner = true;
-                    }
-                } else {
-                    if (soldier_miner_ratio > 3) {
-                        build_miner = true;
-                    }
-                }
-
-                if (build_miner) {
-                    rc.setIndicatorString("Trying to build a miner");
-                    if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                        rc.buildRobot(RobotType.MINER, dir);
-                        System.out.println("Built a miner!");
-                        rc.writeSharedArray(6, rc.readSharedArray(6) + 1);
-                    }
-                } else {
-                    rc.setIndicatorString("Trying to build a soldier");
-                    if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
-                        rc.buildRobot(RobotType.SOLDIER, dir);
-                        System.out.println("Built a soldier!");
-                        rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
-                    }
-                }
-            }
-        */
+            */
         }
-    }
     /*
      * Run a single turn for a Miner.
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
     static void runMiner(RobotController rc) throws GameActionException {
+
+
+
         // Try to mine on squares around us.
         MapLocation me = rc.getLocation();
         for (int dx = -1; dx <= 1; dx++) {
@@ -275,6 +236,7 @@ public strictfp class RobotPlayer {
             rc.move(dir);
             System.out.println("I moved!");
         }
+
     }
 
     /**
@@ -456,7 +418,6 @@ public strictfp class RobotPlayer {
             } else {soldier_random(rc);}
         }
 
-        System.out.println("SOLDIER STILL HAD BYTECODES LEFT!");
         /* Default routine  */
         /*
         // Try to attack someone
@@ -500,11 +461,21 @@ public strictfp class RobotPlayer {
 
         Direction [] tower_dirs = {Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH};
 
-        boolean built = false;
-
         boolean nearby_tower = false;
+        boolean nearby_lab = false;
 
+        RobotInfo [] nearby_friendlies = rc.senseNearbyRobots(20, rc.getTeam());
 
+        for (RobotInfo nearby_fiendly : nearby_friendlies) {
+            RobotType friendly_type = nearby_fiendly.getType();
+            if (friendly_type.equals(RobotType.WATCHTOWER)) {
+                nearby_tower = true;
+            }
+
+            else if (friendly_type.equals(RobotType.LABORATORY)) {
+                nearby_lab =  true;
+            }
+        }
 
         if (!nearby_tower) {
             if (!hq_loc.equals(rc.getLocation())) {
@@ -527,7 +498,7 @@ public strictfp class RobotPlayer {
             }
         }
 
-        if (built) {
+        if (nearby_tower) {
             for (RobotInfo nearby_robot : rc.senseNearbyRobots()) {
                 if (nearby_robot.getTeam().isPlayer() && nearby_robot.getMode().equals(RobotMode.PROTOTYPE)) {
                     if (rc.canRepair(nearby_robot.getLocation())) {
@@ -538,6 +509,29 @@ public strictfp class RobotPlayer {
                 }
             }
         }
+
+        /*
+        if (turnCount>=1500&&!nearby_lab) {
+            if (!hq_loc.equals(rc.getLocation())) {
+                if (rc.getLocation().directionTo(hq_loc).equals(Direction.NORTH)) {
+                    for (Direction test_dir : tower_dirs) {
+                        if (rc.canBuildRobot(RobotType.LABORATORY, test_dir)) {
+                            rc.buildRobot(RobotType.LABORATORY, test_dir);
+                            System.out.println("Built a lab!");
+                        }
+                    }
+                }
+                else if (rc.getLocation().directionTo(hq_loc).equals(Direction.SOUTH)) {
+                    for (Direction test_dir : tower_dirs) {
+                        if (rc.canBuildRobot(RobotType.LABORATORY, test_dir)) {
+                            rc.buildRobot(RobotType.LABORATORY, test_dir);
+                            System.out.println("Built a watchtower!");
+                        }
+                    }
+                }
+            }
+        }
+         */
     }
 
     /*IMPROVE ATTACK ALGO!*/
@@ -655,6 +649,13 @@ public strictfp class RobotPlayer {
             }
         }
     }
+
+    /*
+    static void repear_friendly_nearby(RobotController rc) throws GameActionException {
+
+    }
+     */
+
 
     /*COMS*/
 
