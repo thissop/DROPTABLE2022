@@ -1,6 +1,8 @@
 package rush_only;
 
 import battlecode.common.*;
+import scala.collection.Map;
+
 import java.util.Arrays;
 
 import java.awt.*;
@@ -86,6 +88,7 @@ public strictfp class RobotPlayer {
                 // world. Remember, uncaught exceptions cause your robot to explode!
                 System.out.println(rc.getType() + " Exception");
                 e.printStackTrace();
+                rc.resign();
 
             } catch (Exception e) {
                 // Oh no! It looks like our code tried to do something bad. This isn't a
@@ -109,6 +112,25 @@ public strictfp class RobotPlayer {
      * This code is wrapped inside the infinite loop in run(), so it is called once per turn.
      */
     static void runArchon(RobotController rc) throws GameActionException {
+
+        if (turnCount==0||turnCount%10==0) {
+
+            int archon_information [] = downloadArchon(rc, 1);
+            int arch_x = archon_information[0];
+            int arch_y = archon_information[1];
+            //MapLocation friendly_archon_loc = new MapLocation(arch_x, arch_y);
+
+            // write own location if
+            if (arch_x+arch_y==0) {
+                MapLocation current_loc = rc.getLocation();
+                int current_x = current_loc.x;
+                int current_y = current_loc.y;
+                uploadArchon(rc, current_x, current_y, turnCount, 0, 1, rc.getID());
+
+            }
+
+        }
+
         int manufactured_miners = rc.readSharedArray(6) & 0b11111111;
         int manufactured_soldiers = rc.readSharedArray(6) & 0b1111111100000000;
         int manufactured_builders = rc.readSharedArray(7) & 0b111111;
@@ -131,8 +153,11 @@ public strictfp class RobotPlayer {
             }
         }
 
+        //rc.sense
+
+
         /*
-        else if (manufactured_builders<3) {
+        else if (manufactured_builders<) {
             Direction [] builder_options = {Direction.NORTH, Direction.SOUTH};
             Direction dir = builder_options[rng.nextInt(builder_options.length)];
             rc.setIndicatorString("Trying to build a builder");
@@ -145,12 +170,24 @@ public strictfp class RobotPlayer {
 
         else {
 
+            Direction dir = directions[rng.nextInt(directions.length)];
+            rc.setIndicatorString("Trying to build a soldier");
+            if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
+                rc.buildRobot(RobotType.SOLDIER, dir);
+                System.out.println("Built a soldier!");
+                rc.writeSharedArray(6, rc.readSharedArray(6) + 0b100000000);
+            }
+
+
+
+            /*
             boolean nearby_builder = false;
 
             // first try to build builder
             for (RobotInfo nearby_robot : rc.senseNearbyRobots(34, rc.getTeam())) {
-                if (nearby_robot.getType().equals(RobotType.BUILDER) && nearby_robot.getTeam().isPlayer()) {
+                if (nearby_robot.getType().equals(RobotType.BUILDER)) {
                     nearby_builder = true;
+                    break;
                 }
             }
 
@@ -208,6 +245,7 @@ public strictfp class RobotPlayer {
                     }
                 }
             }
+        */
         }
     }
     /*
@@ -245,233 +283,180 @@ public strictfp class RobotPlayer {
      */
     static void runSoldier(RobotController rc) throws GameActionException {
 
-        int total_manufactured_soldiers = 0; // fix and set to sum of them
+        int enemy_archon_information[] = downloadArchon(rc, 2); // just using archon num 2 for default
+        int enemy_arch_x = enemy_archon_information[0];
+        int enemy_arch_y = enemy_archon_information[1];
 
-        int guess_int = 0; // fix to call method when miles finishes it
+        int soldier_tag = rc.getID()%10;
 
-        int [] guess_statuses = {1,1,1}; // fix
+        // replace current soldier_random_archon bc it's prohibitavly expensive
 
-        if (Arrays.asList(guess_statuses).contains(2)) {
-            for (int i = 0; i < 3; i++) {
-                int guess_status = guess_statuses[i];
-                if (guess_status == 2) {
-                    MapLocation archon_loc = null; // fix to call the relevant value
+        // simultaneously check for archon
 
-                    if (rc.canSenseLocation(archon_loc)) {
-                        RobotInfo location_info = rc.senseRobotAtLocation(archon_loc);
-                        if (location_info.equals(null)) {
-                            // write 0 to location value
-                        } else {
-                            if (!location_info.getTeam().isPlayer() && location_info.getType().equals(RobotType.ARCHON)) {
-                                if (rc.canAttack(archon_loc)) {
-                                    rc.attack(archon_loc);
-                                    System.out.println("Attacked enemy archon!");
-                                } else {
-                                    // try to move towards it;
-                                }
-                            } else {
-                                // write zero to location
-                            }
+        for (RobotInfo nearby_bot : rc.senseNearbyRobots(20, rc.getTeam().opponent())) {
 
-                        }
-                    }
+            if (nearby_bot.getType().equals(RobotType.ARCHON)) {
+                // write attempt attack move random
 
-                    // else test for things to attack, move towards it, move randomly
+                MapLocation nearby_enemy_archon_loc = nearby_bot.getLocation();
+                Direction nearby_enemy_archon_dir = rc.getLocation().directionTo(nearby_enemy_archon_loc);
 
+                if (enemy_arch_x+enemy_arch_y==0) {
 
-
+                    uploadArchon(rc, nearby_enemy_archon_loc.x, nearby_enemy_archon_loc.y, turnCount, 0, 2, nearby_bot.getID());
 
                 }
-            }
-        }
 
-        else if (Arrays.asList(guess_statuses).contains(1)) {
-            for (int i = 0; i < 3; i++) {
-                int guess_status = guess_statuses[i];
-                if (guess_status == 1) {
-                    MapLocation archon_loc = null;
+                if (rc.canAttack(nearby_enemy_archon_loc)) {
+                    rc.attack(nearby_enemy_archon_loc);
                 }
-            }
-        }
 
-        else {
-            // do some random stuff
-        }
+                else if (rc.canMove(nearby_enemy_archon_dir)) {
+                    rc.move(nearby_enemy_archon_dir);
+                } else {soldier_random(rc);}
 
-
-
-        for (int i = 0; i<3; i++) {
-            int guess_status = guess_statuses[i];
-            if (guess_status==2) {
-                // initiate known archon routine
+                break;
             }
 
-            else if (guess_status==1) {
-                // initiate search routine
-            }
-
-            else {
-
-            }
 
         }
 
-
-
-        // FIX THIS MAYBE!!!
-
-        boolean enemy_archon_known = false;
-
-        int manufactured_soldiers = // set to sum of
-
-        for (int i=0; i<4; i++) {
-            int [] queried_archon_info = downloadArchon(rc, i);
-            int queried_x = queried_archon_info[0];
-            int queried_y = queried_archon_info[1];
-            if (queried_x+queried_y>0) {
-
-                enemy_archon_known = true;
-
-                MapLocation enemy_archon_loc = new MapLocation(queried_x, queried_y);
-                Direction archon_dir = rc.getLocation().directionTo(enemy_archon_loc);
-
+        // begin attack if enemy loc is known! --> fix if archon is killed
+        if (enemy_arch_y + enemy_arch_x > 0) {
+            MapLocation enemy_archon_loc = new MapLocation(enemy_arch_x, enemy_arch_y);
+            Direction dir_to_enemy_archon = rc.getLocation().directionTo(enemy_archon_loc);
+            if (rc.canSenseLocation(enemy_archon_loc)) {
                 if (rc.canAttack(enemy_archon_loc)) {
                     rc.attack(enemy_archon_loc);
                     System.out.println("ATTACKED ENEMY ARCHON!");
                 }
 
-                else {
+                else if (rc.canMove(dir_to_enemy_archon)) {
+                    rc.move(dir_to_enemy_archon);
+                    System.out.println("MOVED TO ENEMY ARCHON!");
+                }
 
-                    int lowest_offense_health = 9999;
-                    int lowest_offense_health_id = -1;
-                    int lowest_neutral_health = 9999;
-                    int lowest_neutral_health_id = -1;
+                else {soldier_random(rc);}
 
-                    for (RobotInfo enemy_offense : rc.senseNearbyRobots(13, rc.getTeam().opponent())) {
-                        int test_health = enemy_offense.getHealth();
-                        int test_id = enemy_offense.getID();
-                        RobotType test_type = enemy_offense.getType();
+            } else if (rc.canMove(dir_to_enemy_archon)) {
+                rc.move(dir_to_enemy_archon);
+                System.out.println("MOVED TO ENEMY ARCHON!");
+            }
 
-                        if (test_type.equals(RobotType.SOLDIER) || test_type.equals(RobotType.WATCHTOWER) || test_type.equals(RobotType.SAGE)) {
-                            if (test_health<lowest_offense_health) {
-                                lowest_offense_health_id = test_id;
-                            }
-                        }
+            else {soldier_random(rc);}
 
-                        else {
-                            if (test_health<lowest_neutral_health) {
-                                lowest_neutral_health_id = test_id;
-                            }
-                        }
+        }
 
-                    }
+        else {
 
-                    if (lowest_offense_health_id!=-1) {
+            int friendly_archon_information[] = downloadArchon(rc, 1);
+            int friendly_arch_x = friendly_archon_information[0];
+            int friendly_arch_y = friendly_archon_information[1];
+            MapLocation friendly_archon_loc = new MapLocation(friendly_arch_x, friendly_arch_y);
 
-                        MapLocation attack_dir = rc.senseRobot(lowest_offense_health_id).getLocation();
+            System.out.println("Friendly Archon Loc: " + friendly_archon_loc);
+            if (friendly_arch_x + friendly_arch_y > 0) {
 
-                        if (rc.canAttack(attack_dir)) {
-                            rc.attack(attack_dir);
-                            System.out.println("ATTACKED AN ENEMY OFFENSIVE!");
-                        }
-                    }
+                if (0 <= soldier_tag && soldier_tag <= 2) {
+                    // go horizontal
+                    MapLocation horizontal_guess = guess_location(rc, friendly_archon_loc, "horizontal");
+                    System.out.println("Horizontal Guess Location: " + horizontal_guess);
+                    Direction horizontal_try_dir = rc.getLocation().directionTo(horizontal_guess);
 
-                    else if (lowest_neutral_health_id!=-1) {
-                        MapLocation attack_dir = rc.senseRobot(lowest_neutral_health_id).getLocation();
-
-                        if (rc.canAttack(attack_dir)) {
-                            rc.attack(attack_dir);
-                            System.out.println("ATTACKED A NEUTRAL OFFENSIVE!");
-                        }
-                    }
-
-                    else {
-                        if (rc.canMove(archon_dir)) {
-                            rc.move(archon_dir);
-                            System.out.println("MOVING TOWARDS ARCHON!");
-                        } else {
-                            MapLocation attempted_destination = rc.adjacentLocation(archon_dir);
-                            RobotInfo destination_info = rc.senseRobotAtLocation(attempted_destination);
-                            if (destination_info.equals(null)) {
-                                if (rc.canMove(archon_dir)) {
-                                    rc.move(archon_dir);
-                                    System.out.println("MOVED TOWARDS ENEMY ARCHON!");
+                    if (rc.canSenseLocation(horizontal_guess)) {
+                        RobotInfo test_info = rc.senseRobotAtLocation(horizontal_guess);
+                        if (!test_info.equals(null)) {
+                            if (test_info.getType().equals(RobotType.ARCHON) && !test_info.getTeam().isPlayer()) {
+                                // upload to array!
+                                uploadArchon(rc, horizontal_guess.x, horizontal_guess.y, turnCount, 0, 2, test_info.getID());
+                                if (rc.canAttack(horizontal_guess)) {
+                                    rc.attack(horizontal_guess);
+                                    System.out.println("ATTACKED ARCHON!");
                                 }
+                                else if (rc.canMove(horizontal_try_dir)) {
+                                    rc.move(horizontal_try_dir);
+                                } else {soldier_random(rc);}
                             } else {
-                                Direction random_dir = directions[rng.nextInt(directions.length)];
-                                if (rc.canMove(random_dir)) {
-                                    rc.move(random_dir);
-                                    System.out.println("I know where Archon is but can't move towards it so moved randomly!");
-                                }
+                                soldier_random(rc);
                             }
-
+                            } else {
+                            soldier_random(rc);
                         }
                     }
+                    else if (rc.canMove(horizontal_try_dir)) {
+                        rc.move(horizontal_try_dir);
+                    } else {soldier_random(rc);}
 
                 }
 
-                break;
-            }
+                else if (soldier_tag > 2 && soldier_tag < 7) {
+                    // go to rotational
+                    MapLocation rotational_guess = guess_location(rc, friendly_archon_loc, "rotational");
+                    System.out.println("Rotational Guess Location: " + rotational_guess);
+                    Direction rotational_try_dir = rc.getLocation().directionTo(rotational_guess);
+
+                    if (rc.canSenseLocation(rotational_guess)) {
+                        RobotInfo test_info = rc.senseRobotAtLocation(rotational_guess);
+                        if (!test_info.equals(null)) {
+                            if (test_info.getType().equals(RobotType.ARCHON) && !test_info.getTeam().isPlayer()) {
+                                // upload to array!
+                                uploadArchon(rc, rotational_guess.x, rotational_guess.y, turnCount, 0, 2, test_info.getID());
+                                if (rc.canAttack(rotational_guess)) {
+                                    rc.attack(rotational_guess);
+                                    System.out.println("ATTACKED ARCHON!");
+                                }
+                                else if (rc.canMove(rotational_try_dir)) {
+                                    rc.move(rotational_try_dir);
+                                } else {soldier_random(rc);}
+                            } else {
+                                soldier_random(rc);
+                            }
+                        } else {
+                            soldier_random(rc);
+                        }
+                    }
+                    else if (rc.canMove(rotational_try_dir)) {
+                        rc.move(rotational_try_dir);
+                    } else {soldier_random(rc);}
+
+                }
+
+                else {
+                    // go to vertical
+                    MapLocation vertical_guess = guess_location(rc, friendly_archon_loc, "vertical");
+                    System.out.println("vertical Guess Location: " + vertical_guess);
+                    Direction vertical_try_dir = rc.getLocation().directionTo(vertical_guess);
+
+                    if (rc.canSenseLocation(vertical_guess)) {
+                        RobotInfo test_info = rc.senseRobotAtLocation(vertical_guess);
+                        if (test_info != null) {
+                            if (test_info.getType().equals(RobotType.ARCHON) && !test_info.getTeam().isPlayer()) {
+                                // upload to array!
+                                uploadArchon(rc, vertical_guess.x, vertical_guess.y, turnCount, 0, 2, test_info.getID());
+                                if (rc.canAttack(vertical_guess)) {
+                                    rc.attack(vertical_guess);
+                                    System.out.println("ATTACKED ARCHON!");
+                                }
+                                else if (rc.canMove(vertical_try_dir)) {
+                                    rc.move(vertical_try_dir);
+                                } else {soldier_random(rc);}
+                            } else {
+                                soldier_random(rc);
+                            }
+                        } else {
+                            soldier_random(rc);
+                        }
+                    }
+                    else if (rc.canMove(vertical_try_dir)) {
+                        rc.move(vertical_try_dir);
+                    } else {soldier_random(rc);}
+                }
+
+
+            } else {soldier_random(rc);}
         }
 
-
-
-        if (!enemy_archon_known) {
-
-            // scan for enemy archon
-
-            // if one is found, write and repeat above
-
-            // else get the closest friendly
-
-
-
-        }
-
-         /*
-
-
-         check if an enemy archon location is known
-         if enemy archon location is known {
-             if enemy archon in attack radius {
-                attack lowest health one
-             }
-
-             else if enemy offense soldier within radius {
-                attack lowest health one
-             }
-
-             else {
-                try move towards enemy archon (if or move randomly)
-                only move randomly if the soil in the next square is impassible
-             }
-         }
-
-         // Enemy archon location not known
-         else {
-            if enemy offensive robot in radius {
-                attack lowest health one
-            }
-
-            else if enemy neutral robot in range {
-                attack lowest health one
-            }
-
-            else if robot is scout {
-                if conditions are met, do scout routine
-            }
-
-            else {
-                move randomly
-            }
-
-
-
-         }
-
-
-         */
-
+        System.out.println("SOLDIER STILL HAD BYTECODES LEFT!");
         /* Default routine  */
         /*
         // Try to attack someone
@@ -565,12 +550,34 @@ public strictfp class RobotPlayer {
      * */
 
     static void runWatchTower(RobotController rc) throws GameActionException {
-        RobotInfo [] nearby_enemies = rc.senseNearbyRobots(20, rc.getTeam().opponent());
-        for (RobotInfo nearby_enemy : nearby_enemies) {
-            if (rc.canAttack(nearby_enemy.getLocation())) {
-                rc.attack(nearby_enemy.getLocation());
-                System.out.println("Attacked a nearby robot!");
-                break;
+        int lowest_offensive_health = 9999;
+        MapLocation lowest_offensive_location = new MapLocation(0,0);
+
+
+        boolean found_offensive_to_attack = false;
+        // fix distance !!!
+        for (RobotInfo nearby_enemy : rc.senseNearbyRobots(13, rc.getTeam().opponent())) {
+            RobotType enemy_type = nearby_enemy.getType();
+
+            if (enemy_type.equals(RobotType.SOLDIER)||enemy_type.equals(RobotType.SAGE)||enemy_type.equals(RobotType.WATCHTOWER)) {
+                if (nearby_enemy.getHealth()<lowest_offensive_health) {
+                    lowest_offensive_health = nearby_enemy.getHealth();
+                    lowest_offensive_location = nearby_enemy.getLocation();
+                    found_offensive_to_attack = true;
+                }
+            }
+        }
+        if (found_offensive_to_attack) {
+            if (rc.canAttack(lowest_offensive_location)) {
+                rc.attack(lowest_offensive_location);
+            }
+        } else {
+            for (RobotInfo nearby_enemy : rc.senseNearbyRobots(13, rc.getTeam().opponent())) {
+                MapLocation nearby_loc = nearby_enemy.getLocation();
+                if (rc.canAttack(nearby_loc)) {
+                    rc.attack(nearby_loc);
+                    break;
+                }
             }
         }
     }
@@ -579,8 +586,8 @@ public strictfp class RobotPlayer {
 
     static MapLocation guess_location(RobotController rc, MapLocation reference_location, String guess_type) {
 
-        int max_x = rc.getMapWidth();
-        int max_y = rc.getMapHeight();
+        int max_x = rc.getMapWidth()-1;
+        int max_y = rc.getMapHeight()-1;
 
         int ref_x = reference_location.x;
         int ref_y = reference_location.y;
@@ -595,42 +602,60 @@ public strictfp class RobotPlayer {
             return guess;
         }
 
-        else if (guess_type.equals("horizontal")) {
+        else { // horizontal
             MapLocation guess = new MapLocation(ref_x, max_y-ref_y);
             return guess;
         }
-
     }
 
-    static void towards_attack_random(RobotController rc, MapLocation desired_destination) throws GameActionException {
+    static void soldier_random(RobotController rc) throws GameActionException {
 
-        Direction desired_dir = rc.getLocation().directionTo(desired_destination);
+        int lowest_offensive_health = 9999;
+        MapLocation lowest_offensive_location = new MapLocation(0,0);
 
-        if (rc.canMove(desired_dir)) {
-            rc.move(desired_dir);
-            System.out.println("moved towards desired direction!");
-        }
 
-        else {
+        boolean found_offensive_to_attack = false;
+        // fix distance !!!
+        RobotInfo [] nearby_enemies = rc.senseNearbyRobots(13, rc.getTeam().opponent());
+        for (RobotInfo nearby_enemy : nearby_enemies) {
+            RobotType enemy_type = nearby_enemy.getType();
 
-            RobotInfo location_info = rc.senseRobotAtLocation(desired_destination);
-
-            if (location_info!=null) {
-                if (rc.canAttack(desired_destination)) {
-
+            if (enemy_type.equals(RobotType.SOLDIER)||enemy_type.equals(RobotType.SAGE)||enemy_type.equals(RobotType.WATCHTOWER)) {
+                if (nearby_enemy.getHealth()<lowest_offensive_health) {
+                    lowest_offensive_health = nearby_enemy.getHealth();
+                    lowest_offensive_location = nearby_enemy.getLocation();
+                    found_offensive_to_attack = true;
                 }
             }
-
-            else {
-                // move randomly?
-            }
-
         }
 
 
+        if (found_offensive_to_attack) {
+            if (rc.canAttack(lowest_offensive_location)) {
+                rc.attack(lowest_offensive_location);
+            }
+        } else {
 
+            boolean found_neutral_to_attack = false;
 
+            for (RobotInfo nearby_enemy : nearby_enemies) {
+                MapLocation nearby_loc = nearby_enemy.getLocation();
+                if (rc.canAttack(nearby_loc)) {
+                    rc.attack(nearby_loc);
+                    found_neutral_to_attack = true;
+                    break;
+                }
+            }
+             if (!found_neutral_to_attack) {
+                Direction random_dir = directions[rng.nextInt(directions.length)];
+                if (rc.canMove(random_dir)) {
+                    rc.move(random_dir);
+                    System.out.println("I moved randomly yuh.");
+                }
+            }
+        }
     }
+
     /*COMS*/
 
     /*WRITERS*/
